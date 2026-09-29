@@ -11,6 +11,13 @@ const testDataSourceConnection = vi.fn();
 const deleteDataSource = vi.fn();
 const replace = vi.fn();
 
+const getMetadataSyncStatus = vi.fn();
+
+vi.mock("@/features/schema-explorer/api", () => ({
+  getMetadataSyncStatus: (...args: unknown[]) =>
+    getMetadataSyncStatus(...args),
+}));
+
 let workspaceId = "ws-1";
 let permissions: Permission[] = [
   "data_source:read",
@@ -59,6 +66,7 @@ describe("DataSourceList", () => {
     listDataSources.mockReset();
     testDataSourceConnection.mockReset();
     deleteDataSource.mockReset();
+    getMetadataSyncStatus.mockReset();
     workspaceId = "ws-1";
     permissions = [
       "data_source:read",
@@ -68,6 +76,17 @@ describe("DataSourceList", () => {
       "data_source:test",
     ];
   });
+
+  const pendingSync = {
+    status: "PENDING",
+    started_at: null,
+    completed_at: null,
+    schemas: null,
+    tables: null,
+    columns: null,
+    relationships: null,
+    error_message: null,
+  };
 
   it("shows a loading state", () => {
     listDataSources.mockReturnValue(new Promise(() => undefined));
@@ -85,6 +104,7 @@ describe("DataSourceList", () => {
   });
 
   it("renders data sources after a successful load", async () => {
+    getMetadataSyncStatus.mockResolvedValue(pendingSync);
     listDataSources.mockResolvedValue([source]);
     renderWithQuery(<DataSourceList />);
     expect(await screen.findByText("Analytics")).toBeTruthy();
@@ -103,6 +123,7 @@ describe("DataSourceList", () => {
 
   it("hides unauthorized actions for members", async () => {
     permissions = ["data_source:read", "data_source:test"];
+    getMetadataSyncStatus.mockResolvedValue(pendingSync);
     listDataSources.mockResolvedValue([source]);
     renderWithQuery(<DataSourceList />);
     expect(await screen.findByText("Analytics")).toBeTruthy();
@@ -112,6 +133,7 @@ describe("DataSourceList", () => {
   });
 
   it("loads the active workspace and updates after a switch", async () => {
+    getMetadataSyncStatus.mockResolvedValue(pendingSync);
     listDataSources.mockImplementation(async (id: string) =>
       id === "ws-1"
         ? [source]
@@ -130,6 +152,7 @@ describe("DataSourceList", () => {
   });
 
   it("tests a connection and shows success", async () => {
+    getMetadataSyncStatus.mockResolvedValue(pendingSync);
     listDataSources.mockResolvedValue([source]);
     testDataSourceConnection.mockResolvedValue({
       success: true,
@@ -143,6 +166,7 @@ describe("DataSourceList", () => {
   });
 
   it("shows a rate-limit error when testing a connection", async () => {
+    getMetadataSyncStatus.mockResolvedValue(pendingSync);
     listDataSources.mockResolvedValue([source]);
     testDataSourceConnection.mockRejectedValue(
       new ApiError("Too many requests", 429, { retryAfter: 5 }),
@@ -157,6 +181,7 @@ describe("DataSourceList", () => {
   });
 
   it("tests a connection and shows failure", async () => {
+    getMetadataSyncStatus.mockResolvedValue(pendingSync);
     listDataSources.mockResolvedValue([source]);
     testDataSourceConnection.mockResolvedValue({
       success: false,
@@ -172,6 +197,7 @@ describe("DataSourceList", () => {
   });
 
   it("confirms deletion and removes the data source", async () => {
+    getMetadataSyncStatus.mockResolvedValue(pendingSync);
     listDataSources.mockResolvedValue([source]);
     deleteDataSource.mockResolvedValue(undefined);
     const user = userEvent.setup();

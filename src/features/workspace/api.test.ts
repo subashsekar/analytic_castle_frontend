@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api/client";
-import { workspacePaths } from "@/lib/api/paths";
-import { createWorkspace, listWorkspaces } from "@/features/workspace/api";
+import { organizationPaths, workspacePaths } from "@/lib/api/paths";
+import {
+  createOrganization,
+  createWorkspace,
+  listOrganizations,
+  listWorkspaces,
+} from "@/features/workspace/api";
 
 vi.mock("@/lib/api/client", () => ({
   api: {
@@ -55,6 +60,40 @@ describe("workspace API", () => {
     expect(mockedApi.post).toHaveBeenCalledWith(workspacePaths.root, {
       organization_id: "org-1",
       name: "Finance",
+    });
+  });
+
+  it("lists organizations", async () => {
+    mockedApi.get.mockResolvedValue({
+      data: [{ id: "org-1", name: "Acme", slug: "acme" }],
+    });
+
+    await expect(listOrganizations()).resolves.toEqual([
+      {
+        id: "org-1",
+        name: "Acme",
+        slug: "acme",
+        role: null,
+        plan_code: null,
+      },
+    ]);
+    expect(mockedApi.get).toHaveBeenCalledWith(organizationPaths.root);
+  });
+
+  it("creates an organization", async () => {
+    mockedApi.post.mockResolvedValue({
+      data: { id: "org-2", name: "Northwind", slug: "northwind" },
+    });
+
+    await expect(createOrganization({ name: "Northwind" })).resolves.toMatchObject(
+      {
+        id: "org-2",
+        name: "Northwind",
+        slug: "northwind",
+      },
+    );
+    expect(mockedApi.post).toHaveBeenCalledWith(organizationPaths.root, {
+      name: "Northwind",
     });
   });
 });

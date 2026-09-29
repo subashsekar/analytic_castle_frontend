@@ -1,11 +1,14 @@
 export const queryKeys = {
   me: ["auth", "me"] as const,
+  health: ["health"] as const,
   organizations: ["organizations"] as const,
   workspaces: ["workspaces"] as const,
   workspace: (id: string) => ["workspaces", id] as const,
   workspaceMembers: (id: string) => ["workspaces", id, "members"] as const,
   dataSources: (workspaceId: string) => ["data-sources", workspaceId] as const,
   dataSource: (id: string) => ["data-sources", "detail", id] as const,
+  catalogAvailability: (workspaceId: string, dataSourceId: string) =>
+    ["metadata", workspaceId, dataSourceId, "catalog-availability"] as const,
   metadata: (dataSourceId: string) => ["metadata", dataSourceId] as const,
   schemas: (dataSourceId: string) =>
     ["metadata", dataSourceId, "schemas"] as const,
@@ -33,4 +36,14 @@ export const queryKeys = {
     query: string,
     metadataType: string | null,
   ) => ["metadata", dataSourceId, "search", query, metadataType] as const,
+  conversations: (workspaceId: string) =>
+    ["conversations", workspaceId] as const,
+  conversation: (workspaceId: string, conversationId: string) =>
+    ["conversations", workspaceId, conversationId] as const,
+  conversationMessages: (workspaceId: string, conversationId: string) =>
+    ["conversations", workspaceId, conversationId, "messages"] as const,
+  queryHistory: (workspaceId: string, options?: Record<string, unknown>) =>
+    ["workspaces", workspaceId, "query-history", options] as const,
+  queryHistoryDetail: (workspaceId: string, historyId: string) =>
+    ["workspaces", workspaceId, "query-history", "detail", historyId] as const,
 };

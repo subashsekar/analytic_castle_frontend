@@ -16,6 +16,14 @@ export function metadataErrorMessage(error: unknown): string {
     return "Sync already running";
   }
 
+  if (apiError.status === 502 || apiError.status === 503) {
+    return "Data temporarily unavailable.";
+  }
+
+  if (apiError.status === 504) {
+    return "The request took too long. Try again.";
+  }
+
   if (apiError.status === 403) {
     return "You do not have permission to do that.";
   }

@@ -45,6 +45,7 @@ src/
 | Team members       | `src/features/team/`                                 |
 | Data sources       | `src/features/data-sources/`                         |
 | Schema explorer    | `src/features/schema-explorer/`                      |
+| AI Analyst         | `src/features/ai/`                                   |
 | HTTP client        | `src/lib/api/client.ts`                              |
 | React Query setup  | `src/providers/query-provider.tsx`, `src/lib/query/` |
 | Shared types       | `src/types/`                                         |
@@ -56,7 +57,8 @@ src/
 Routes live only in `src/app/`.
 
 - `(auth)` — login, register, forgot/reset password, verify email
-- `(app)` — signed-in home, profile, account, workspace screens
+- `(app)` — signed-in home, profile, account, workspace, data sources, AI Analyst
+- Backend contract and screen→endpoint map: [`docs/backend-integration.md`](./backend-integration.md)
 
 Pages compose feature components. They do not call APIs or own form state.
 

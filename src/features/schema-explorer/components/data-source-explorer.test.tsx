@@ -405,6 +405,46 @@ describe("DataSourceExplorer", () => {
     expect(await screen.findByText("Sync already running")).toBeTruthy();
   });
 
+  it("does not render internal sync error_message content", async () => {
+    const failedSyncWithToolError = {
+      status: "FAILED",
+      started_at: "2026-08-18T10:01:00Z",
+      completed_at: "2026-08-18T10:02:00Z",
+      schemas: 2,
+      tables: 2,
+      columns: 3,
+      relationships: 1,
+      error_message: "postgres.list_schemas tool failed",
+    };
+
+    getDataSource.mockResolvedValue(source);
+    getMetadataSyncStatus.mockResolvedValue(failedSyncWithToolError);
+    listSchemas.mockResolvedValue(page([publicSchema, reportingSchema]));
+    listTables.mockResolvedValue(page([customers, orders]));
+    listColumns.mockResolvedValue(page(columns));
+    listRelationships.mockResolvedValue(page([relationship, compositeRelationship]));
+    searchMetadata.mockResolvedValue({
+      items: [],
+      total: 0,
+      limit: 50,
+      truncated: false,
+    });
+
+    const user = userEvent.setup();
+    renderWithQuery(<DataSourceExplorer dataSourceId="ds-1" />);
+
+    expect(await screen.findByText("Limited data access")).toBeTruthy();
+    expect(
+      await screen.findByText(
+        "Some metadata may be out of date. Try synchronizing metadata again to update this catalog.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/list_schemas/i)).toBeNull();
+
+    await user.click(await screen.findByRole("button", { name: /public/i }));
+    expect(await screen.findByText(/public\.customers/i)).toBeTruthy();
+  });
+
   it("shows schema loading, empty, and error states", async () => {
     getDataSource.mockResolvedValue(source);
     getMetadataSyncStatus.mockResolvedValue(successSync);

@@ -79,6 +79,14 @@ api.interceptors.response.use(
     const url = config?.url ?? "";
     const isAuthEndpoint = /\/auth\/(login|register|refresh)$/.test(url);
 
+    if (status === 429) {
+      const retryAfter = error.response?.headers?.["retry-after"] || "30";
+      const countdownSec = Number(retryAfter) || 30;
+      const resetTime = Date.now() + countdownSec * 1000;
+      localStorage.setItem("rate_limit_reset", String(resetTime));
+      window.dispatchEvent(new CustomEvent("rate_limit_triggered", { detail: { resetTime } }));
+    }
+
     if (status === 401 && config && !isAuthEndpoint) {
       if (!config.skipAuthRefresh && !config._retry && getRefreshToken()) {
         config._retry = true;

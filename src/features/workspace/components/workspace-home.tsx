@@ -59,10 +59,22 @@ export function WorkspaceHome() {
           action="View data sources"
         />
         <HomeCard
+          title="AI Analyst"
+          description="Ask questions about catalog metadata for a connected source."
+          href="/ai"
+          action="Open AI Analyst"
+        />
+        <HomeCard
           title="Team"
           description="People with access to this workspace."
           href="/workspace/members"
           action="View team"
+        />
+        <HomeCard
+          title="Organizations"
+          description="Create an organization and view the ones you belong to."
+          href="/organizations"
+          action="View organizations"
         />
         {can("workspace.admin") ? (
           <HomeCard

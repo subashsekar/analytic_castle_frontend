@@ -119,3 +119,18 @@ export function useOrganizations(enabled = true) {
     enabled,
   });
 }
+
+export function useCreateOrganization() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (name: string) => createOrganization({ name }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.me }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.organizations }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.workspaces }),
+      ]);
+    },
+  });
+}

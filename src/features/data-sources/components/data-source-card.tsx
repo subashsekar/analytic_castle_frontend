@@ -7,11 +7,14 @@ import {
   DataSourceStatusBadge,
   dataSourceTypeLabel,
 } from "@/features/data-sources/components/data-source-status";
+import type { DataAvailability } from "@/features/data-sources/product-status";
+import { DataAvailabilityBadge } from "@/features/data-sources/components/data-availability-badges";
 import type { DataSource } from "@/features/data-sources/types";
 
 export function DataSourceCard({
   dataSource,
   testing,
+  availability,
   canTest,
   canDelete,
   onTest,
@@ -20,6 +23,7 @@ export function DataSourceCard({
 }: {
   dataSource: DataSource;
   testing: boolean;
+  availability?: DataAvailability;
   canTest: boolean;
   canDelete: boolean;
   onTest: () => void;
@@ -48,6 +52,7 @@ export function DataSourceCard({
       </div>
       <div className="flex min-h-11 flex-wrap items-center gap-2 sm:min-h-0 sm:shrink-0">
         <DataSourceStatusBadge status={dataSource.status} testing={testing} />
+        {availability ? <DataAvailabilityBadge availability={availability} /> : null}
         <Link
           href={`/data-sources/${dataSource.id}`}
           className="ac-focus-ring inline-flex h-8 min-w-11 items-center justify-center rounded-sm border border-border-strong px-3 text-[12.5px] font-semibold text-text-1 hover:border-text-3 hover:bg-sunken"

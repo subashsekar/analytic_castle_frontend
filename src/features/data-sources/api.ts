@@ -160,3 +160,52 @@ export async function testDataSourceConnection(
         : "Unable to connect to the data source."),
   };
 }
+
+// Workspace-scoped Phase 7 endpoints with automatic dual-mode fallback
+export async function nestedCreateDataSource(
+  workspaceId: string,
+  payload: CreateDataSourceRequest,
+): Promise<DataSource> {
+  try {
+    const { data } = await api.post(
+      dataSourcePaths.nestedRoot(workspaceId),
+      toCreateDataSourceRequest(payload),
+    );
+    return requireDataSource(
+      data,
+      "Data source was created but the response was invalid.",
+    );
+  } catch (err: any) {
+    if (err.status === 404) {
+      // Fallback to legacy global endpoint
+      return createDataSource(payload);
+    }
+    throw err;
+  }
+}
+
+export async function nestedTestDataSourceConnection(
+  workspaceId: string,
+  dataSourceId: string,
+): Promise<ConnectionTestResponse> {
+  try {
+    const { data } = await api.post(
+      dataSourcePaths.nestedTestConnection(workspaceId, dataSourceId),
+    );
+    const record = isRecord(data) ? data : {};
+    return {
+      success: record.success === true,
+      message:
+        asNonEmptyString(record.message) ??
+        (record.success === true
+          ? "Connection successful."
+          : "Unable to connect to the data source."),
+    };
+  } catch (err: any) {
+    if (err.status === 404) {
+      // Fallback to legacy connection test endpoint
+      return testDataSourceConnection(dataSourceId);
+    }
+    throw err;
+  }
+}

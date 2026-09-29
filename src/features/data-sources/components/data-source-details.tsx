@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -17,6 +18,10 @@ import {
   dataSourceTypeLabel,
   formatTimestamp,
 } from "@/features/data-sources/components/data-source-status";
+import {
+  DataAvailabilityBadge,
+  DataHealthBadge,
+} from "@/features/data-sources/components/data-availability-badges";
 import { useForm } from "@/hooks/shared/use-form";
 import { getErrorStatus } from "@/lib/api/errors";
 import { dataSourceErrorMessage } from "@/features/data-sources/errors";
@@ -26,6 +31,11 @@ import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { listSchemas } from "@/features/schema-explorer/api";
+import { useSyncStatus } from "@/features/schema-explorer/hooks/use-sync-metadata";
+import { supportsMetadata } from "@/features/schema-explorer/types";
+import { deriveDataAvailability, deriveDataHealth } from "@/features/data-sources/product-status";
+import { queryKeys } from "@/lib/query/query-keys";
 
 export function DataSourceDetailsPage() {
   const params = useParams<{ id: string }>();
@@ -43,6 +53,7 @@ export function DataSourceDetails({ dataSourceId }: { dataSourceId: string }) {
   const query = useDataSource(dataSourceId || null);
   const testConnection = useTestDataSource();
   const deleteDataSource = useDeleteDataSource();
+  const canRead = can("data_source:read");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [testMessage, setTestMessage] = useState<string | null>(
     searchParams.get("created") === "1"
@@ -62,6 +73,47 @@ export function DataSourceDetails({ dataSourceId }: { dataSourceId: string }) {
   const canTest = can("data_source:test");
   const testing = testConnection.isPending;
   const status = getErrorStatus(query.error);
+
+  const metadataEnabled = Boolean(
+    dataSource && supportsMetadata(dataSource.type),
+  );
+  const catalogAllowed = canRead && belongsToWorkspace && metadataEnabled;
+  const syncQuery = useSyncStatus(catalogAllowed ? dataSourceId : null);
+
+  const schemaAvailabilityQuery = useQuery({
+    queryKey: queryKeys.catalogAvailability(workspace?.id ?? "", dataSourceId),
+    queryFn: () => listSchemas(dataSourceId, { page: 1, pageSize: 1 }),
+    enabled: Boolean(catalogAllowed && workspace?.id),
+  });
+
+  const hasSchemas =
+    schemaAvailabilityQuery.isLoading || schemaAvailabilityQuery.isFetching
+      ? undefined
+      : Boolean(schemaAvailabilityQuery.data?.items?.length);
+
+  const effectiveSyncStatus =
+    syncQuery.data?.status ??
+    (syncQuery.isPending ? "PENDING" : syncQuery.data?.status ?? "PENDING");
+
+  const availability = schemaAvailabilityQuery.isLoading
+    ? "checking"
+    : deriveDataAvailability({
+        metadataEnabled,
+        connectionStatus: dataSource?.status ?? "INACTIVE",
+        isTesting: testing,
+        syncStatus: effectiveSyncStatus,
+        hasSchemas,
+        schemasCount: syncQuery.data?.schemas ?? null,
+      });
+
+  const health = schemaAvailabilityQuery.isLoading
+    ? "checking"
+    : deriveDataHealth({
+        metadataEnabled,
+        connectionStatus: dataSource?.status ?? "INACTIVE",
+        syncStatus: effectiveSyncStatus,
+        hasSchemas,
+      });
 
   const closeDelete = useCallback(() => {
     if (!deleteDataSource.isPending) {
@@ -202,6 +254,15 @@ export function DataSourceDetails({ dataSourceId }: { dataSourceId: string }) {
             />
           }
         />
+        {catalogAllowed ? (
+          <SettingsRow
+            label="Data availability"
+            value={<DataAvailabilityBadge availability={availability} />}
+          />
+        ) : null}
+        {catalogAllowed ? (
+          <SettingsRow label="Health" value={<DataHealthBadge health={health} />} />
+        ) : null}
         <SettingsRow
           label="Last tested"
           value={formatTimestamp(dataSource.last_tested_at)}

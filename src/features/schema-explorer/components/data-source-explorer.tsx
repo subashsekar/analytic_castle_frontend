@@ -7,10 +7,11 @@ import { ChevronLeft } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useDataSource } from "@/features/data-sources/hooks/use-data-sources";
 import { dataSourceTypeLabel } from "@/features/data-sources/components/data-source-status";
+import { deriveDataAvailability } from "@/features/data-sources/product-status";
 import { MetadataSearch } from "@/features/schema-explorer/components/metadata-search";
 import { MetadataSync } from "@/features/schema-explorer/components/metadata-sync";
 import { SchemaList } from "@/features/schema-explorer/components/schema-list";
-import { SyncStatus } from "@/features/schema-explorer/components/sync-status";
+import { DataAvailabilityStatus } from "@/features/schema-explorer/components/data-availability-status";
 import { TableDetails } from "@/features/schema-explorer/components/table-details";
 import { TableList } from "@/features/schema-explorer/components/table-list";
 import { metadataErrorMessage } from "@/features/schema-explorer/errors";
@@ -142,6 +143,20 @@ function DataSourceExplorerSession({ dataSourceId }: { dataSourceId: string }) {
   const status = getErrorStatus(dataSourceQuery.error);
   const searchResultsId = useId();
   const syncing = sync.isPending || syncStatus === "RUNNING";
+
+  const hasSchemas = schemas.isLoading ? undefined : schemas.items.length > 0;
+  const effectiveSyncStatus = syncing
+    ? "RUNNING"
+    : syncQuery.data?.status ?? (syncQuery.isLoading ? "PENDING" : "PENDING");
+
+  const dataAvailability = deriveDataAvailability({
+    metadataEnabled,
+    connectionStatus: dataSource?.status ?? "INACTIVE",
+    isTesting: false,
+    syncStatus: effectiveSyncStatus,
+    hasSchemas,
+    schemasCount: syncQuery.data?.schemas ?? null,
+  });
 
   function resetSelection() {
     setSelectedSchema(null);
@@ -300,7 +315,10 @@ function DataSourceExplorerSession({ dataSourceId }: { dataSourceId: string }) {
               {metadataEnabled ? (
                 <>
                   <span aria-hidden>·</span>
-                  <SyncStatus sync={syncQuery.data} syncing={syncing} />
+                  <DataAvailabilityStatus
+                    availability={dataAvailability}
+                    sync={syncQuery.data}
+                  />
                 </>
               ) : null}
             </p>
@@ -310,8 +328,15 @@ function DataSourceExplorerSession({ dataSourceId }: { dataSourceId: string }) {
       </div>
 
       {feedback ? <Alert tone={feedbackTone}>{feedback}</Alert> : null}
-      {syncStatus === "FAILED" && syncQuery.data?.error_message ? (
-        <Alert>{syncQuery.data.error_message}</Alert>
+      {metadataEnabled &&
+      syncStatus === "FAILED" &&
+      !schemas.isLoading &&
+      !schemas.isError &&
+      schemas.items.length > 0 ? (
+        <Alert tone="info">
+          Some metadata may be out of date. Try synchronizing metadata again to
+          update this catalog.
+        </Alert>
       ) : null}
       {syncQuery.isError ? (
         <Alert>{metadataErrorMessage(syncQuery.error)}</Alert>
@@ -355,6 +380,18 @@ function DataSourceExplorerSession({ dataSourceId }: { dataSourceId: string }) {
             canSync
               ? "The last successful catalog is unavailable. Retry synchronization to inspect this database."
               : "The last successful catalog is unavailable. Ask a workspace admin to retry synchronization."
+          }
+          action={
+            canSync ? (
+              <Button
+                variant="outline"
+                onClick={() => void handleSync()}
+                disabled={syncing}
+                loading={syncing}
+              >
+                Try again
+              </Button>
+            ) : undefined
           }
         />
       ) : null}

@@ -3,7 +3,6 @@ import {
   buildMeResponse,
   isTokenEnvelope,
   normalizeUser,
-  normalizeWorkspaceMember,
 } from "@/lib/api/normalize";
 import { authPaths } from "@/lib/api/paths";
 import { getRefreshToken, getWorkspaceId } from "@/lib/auth/session";
@@ -130,6 +129,13 @@ export async function resendVerification(
   payload: ResendVerificationRequest,
 ): Promise<void> {
   await api.post(authPaths.resendVerification, payload);
+}
+
+/** OpenAPI alias of resend-verification. */
+export async function sendVerificationEmail(
+  payload: ResendVerificationRequest,
+): Promise<void> {
+  await api.post(authPaths.sendVerificationEmail, payload);
 }
 
 export async function forgotPassword(

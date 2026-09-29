@@ -6,6 +6,7 @@ export class ApiError extends Error {
   readonly code?: string;
   readonly fields?: Record<string, string>;
   readonly retryAfter?: number;
+  readonly requestId?: string;
 
   constructor(
     message: string,
@@ -14,6 +15,7 @@ export class ApiError extends Error {
       code?: string;
       fields?: Record<string, string>;
       retryAfter?: number;
+      requestId?: string;
     },
   ) {
     super(message);
@@ -22,6 +24,7 @@ export class ApiError extends Error {
     this.code = options?.code;
     this.fields = options?.fields;
     this.retryAfter = options?.retryAfter;
+    this.requestId = options?.requestId;
   }
 }
 
@@ -36,6 +39,8 @@ const STATUS_MESSAGES: Record<number, string> = {
   429: "Too many attempts. Please try again later.",
   500: "Something went wrong. Please try again.",
   502: "The connected database could not be reached.",
+  503: "This service is temporarily unavailable.",
+  504: "The request took too long. Please try again.",
 };
 
 type FastApiViolation = {
@@ -135,6 +140,23 @@ function sanitizeMessage(message: string): string {
   ) {
     return STATUS_MESSAGES[500];
   }
+
+  // Phase 5 MCP infrastructure details should never reach end-user UI.
+  // Backend error payloads may include internal tool names, registry/server
+  // lifecycle wording, or protocol-level terms.
+  if (
+    /mcp\b|model context protocol|json[- ]rpc|tool execution|registry|server lifecycle/i.test(
+      message,
+    ) ||
+    /postgres\.(query|list_schemas|list_tables|describe_table|get_columns|get_relationships|sample_rows)\b/i.test(
+      message,
+    ) ||
+    /\b(list_schemas|list_tables|describe_table|get_columns|get_relationships|sample_rows)\b/i.test(
+      message,
+    )
+  ) {
+    return STATUS_MESSAGES[500];
+  }
   return message;
 }
 
@@ -182,6 +204,35 @@ function parseRetryAfter(headers: unknown): number | undefined {
   return Math.round(seconds);
 }
 
+function parseRequestId(data: unknown, headers: unknown): string | undefined {
+  if (isRecord(data)) {
+    const fromBody =
+      asTrimmedString(data.request_id) ??
+      (isRecord(data.error) ? asTrimmedString(data.error.request_id) : undefined);
+    if (fromBody) {
+      return fromBody;
+    }
+  }
+
+  if (!headers || typeof headers !== "object") {
+    return undefined;
+  }
+
+  const record = headers as {
+    get?: (name: string) => unknown;
+    "x-request-id"?: unknown;
+    "X-Request-ID"?: unknown;
+  };
+  const raw =
+    (typeof record.get === "function"
+      ? record.get("x-request-id")
+      : undefined) ??
+    record["x-request-id"] ??
+    record["X-Request-ID"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return asTrimmedString(value);
+}
+
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) {
     return error;
@@ -192,8 +243,21 @@ export function toApiError(error: unknown): ApiError {
     const data = error.response?.data;
     const fields = parseFields(data);
     const retryAfter = parseRetryAfter(error.response?.headers);
+    const requestId = parseRequestId(data, error.response?.headers);
 
     if (!error.response) {
+      const code = error.code ?? "";
+      const message = (error.message ?? "").toLowerCase();
+      const timedOut =
+        code === "ECONNABORTED" ||
+        code === "ETIMEDOUT" ||
+        message.includes("timeout");
+      if (timedOut) {
+        return new ApiError(
+          "The analysis timed out waiting for the server. Try again.",
+          504,
+        );
+      }
       return new ApiError(
         "Unable to reach the server. Check your connection.",
         0,
@@ -204,6 +268,7 @@ export function toApiError(error: unknown): ApiError {
       code: parseCode(data),
       fields,
       retryAfter,
+      requestId,
     });
   }
 

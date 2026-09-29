@@ -11,7 +11,9 @@ export const PROTECTED_PREFIXES = [
   "/profile",
   "/account",
   "/workspace",
+  "/organizations",
   "/data-sources",
+  "/ai",
 ] as const;
 
 export function isSafeNextPath(

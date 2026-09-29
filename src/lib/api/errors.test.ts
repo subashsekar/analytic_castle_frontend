@@ -82,4 +82,25 @@ describe("toApiError", () => {
     expect(error.status).toBe(502);
     expect(error.message).toBe("Unable to retrieve sample data");
   });
+
+  it("maps axios timeouts distinctly from unreachable hosts", () => {
+    const timeoutError = new axios.AxiosError(
+      "timeout of 180000ms exceeded",
+      "ECONNABORTED",
+      undefined,
+      undefined,
+      undefined,
+    );
+    const mapped = toApiError(timeoutError);
+    expect(mapped.status).toBe(504);
+    expect(mapped.message.toLowerCase()).toContain("timed out");
+  });
+
+  it("sanitizes MCP/tool names from backend error details", () => {
+    const error = toApiError(
+      axiosError(500, { detail: "postgres.list_schemas tool failed" }),
+    );
+    expect(error.status).toBe(500);
+    expect(error.message).toBe("Something went wrong. Please try again.");
+  });
 });

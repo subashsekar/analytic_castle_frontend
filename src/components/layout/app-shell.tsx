@@ -8,9 +8,11 @@ import {
   Database,
   Users,
   Settings,
+  Building2,
   User,
   LogOut,
   KeyRound,
+  MessageSquare,
 } from "lucide-react";
 import { BrandLockup } from "@/components/brand/brand-lockup";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -25,8 +27,10 @@ const ICON_STROKE = 1.5;
 const primaryNav = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/data-sources", label: "Data sources", icon: Database },
+  { href: "/ai", label: "AI Analyst", icon: MessageSquare },
   { href: "/workspace/members", label: "Team", icon: Users },
   { href: "/workspace/settings", label: "Workspace", icon: Settings },
+  { href: "/organizations", label: "Organization", icon: Building2 },
 ] as const;
 
 const mobileNav = [

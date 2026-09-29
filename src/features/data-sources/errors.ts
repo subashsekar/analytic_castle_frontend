@@ -12,6 +12,14 @@ export function dataSourceErrorMessage(error: unknown): string {
     return RATE_LIMIT_MESSAGE;
   }
 
+  if (apiError.status === 502 || apiError.status === 503) {
+    return "This data source is temporarily unavailable.";
+  }
+
+  if (apiError.status === 504) {
+    return "The request took too long. Try again.";
+  }
+
   if (apiError.status === 403) {
     return "You do not have permission to do that.";
   }

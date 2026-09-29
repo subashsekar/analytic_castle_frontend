@@ -100,10 +100,16 @@ export function WorkspaceGate({ children }: { children: ReactNode }) {
 
     const onCreate = pathname.startsWith("/workspace/new");
     const onSelect = pathname.startsWith("/workspace/select");
+    const onOrganizations = pathname.startsWith("/organizations");
     const skipWorkspace =
       pathname.startsWith("/profile") || pathname.startsWith("/account");
 
-    if (decision.action === "create" && !onCreate && !skipWorkspace) {
+    if (
+      decision.action === "create" &&
+      !onCreate &&
+      !onOrganizations &&
+      !skipWorkspace
+    ) {
       router.replace("/workspace/new");
       return;
     }

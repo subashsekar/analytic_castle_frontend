@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useQueries } from "@tanstack/react-query";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/use-auth";
@@ -18,6 +19,10 @@ import { Alert } from "@/components/ui/alert";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageSpinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { deriveDataAvailability } from "@/features/data-sources/product-status";
+import { queryKeys } from "@/lib/query/query-keys";
+import { getMetadataSyncStatus } from "@/features/schema-explorer/api";
+import { supportsMetadata } from "@/features/schema-explorer/types";
 
 export function DataSourceList() {
   const searchParams = useSearchParams();
@@ -36,9 +41,18 @@ export function DataSourceList() {
   );
 
   const canCreate = can("data_source:create");
+  const canRead = can("data_source:read");
   const canTest = can("data_source:test");
   const canDelete = can("data_source:delete");
   const status = getErrorStatus(listQuery.error);
+
+  const syncStatusQueries = useQueries({
+    queries: (listQuery.data ?? []).map((dataSource) => ({
+      queryKey: queryKeys.syncStatus(dataSource.id),
+      queryFn: () => getMetadataSyncStatus(dataSource.id),
+      enabled: canRead && supportsMetadata(dataSource.type),
+    })),
+  });
 
   const closeDelete = useCallback(() => {
     if (!deleteDataSource.isPending) {
@@ -141,21 +155,42 @@ export function DataSourceList() {
 
       {listQuery.data && listQuery.data.length > 0 ? (
         <ul className="overflow-hidden rounded-md border border-border bg-surface">
-          {listQuery.data.map((dataSource, index) => (
-            <DataSourceCard
-              key={dataSource.id}
-              dataSource={dataSource}
-              testing={
-                testConnection.isPending &&
-                testConnection.variables === dataSource.id
-              }
-              canTest={canTest}
-              canDelete={canDelete}
-              onTest={() => handleTest(dataSource)}
-              onDelete={() => setPendingDelete(dataSource)}
-              className={index > 0 ? "border-t border-border" : ""}
-            />
-          ))}
+          {listQuery.data.map((dataSource, index) => {
+            const testing =
+              testConnection.isPending &&
+              testConnection.variables === dataSource.id;
+
+            const syncQuery = syncStatusQueries[index];
+            const syncStatus = syncQuery?.data?.status ?? "PENDING";
+            const schemasCount = syncQuery?.data?.schemas ?? null;
+            const hasSchemas =
+              typeof schemasCount === "number" ? schemasCount > 0 : undefined;
+
+            const availability = canRead
+              ? deriveDataAvailability({
+                  metadataEnabled: supportsMetadata(dataSource.type),
+                  connectionStatus: dataSource.status,
+                  isTesting: testing,
+                  syncStatus,
+                  hasSchemas,
+                  schemasCount,
+                })
+              : undefined;
+
+            return (
+              <DataSourceCard
+                key={dataSource.id}
+                dataSource={dataSource}
+                testing={testing}
+                availability={availability}
+                canTest={canTest}
+                canDelete={canDelete}
+                onTest={() => handleTest(dataSource)}
+                onDelete={() => setPendingDelete(dataSource)}
+                className={index > 0 ? "border-t border-border" : ""}
+              />
+            );
+          })}
         </ul>
       ) : null}
 

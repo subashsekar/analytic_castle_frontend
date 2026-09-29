@@ -466,6 +466,42 @@ export async function syncMetadata(
   return normalizeSyncResult(data);
 }
 
+export async function nestedSyncMetadata(
+  workspaceId: string,
+  dataSourceId: string,
+): Promise<MetadataSyncResult> {
+  try {
+    const { data } = await api.post(
+      metadataPaths.nestedSync(workspaceId, dataSourceId),
+      undefined,
+      { timeout: CUSTOMER_DB_TIMEOUT_MS },
+    );
+    return normalizeSyncResult(data);
+  } catch (err: any) {
+    if (err.status === 404) {
+      return syncMetadata(dataSourceId);
+    }
+    throw err;
+  }
+}
+
+export async function nestedGetMetadataSyncStatus(
+  workspaceId: string,
+  dataSourceId: string,
+): Promise<MetadataSyncResult> {
+  try {
+    const { data } = await api.get(
+      metadataPaths.nestedSyncStatus(workspaceId, dataSourceId),
+    );
+    return normalizeSyncResult(data);
+  } catch (err: any) {
+    if (err.status === 404) {
+      return getMetadataSyncStatus(dataSourceId);
+    }
+    throw err;
+  }
+}
+
 export async function getSampleData(
   dataSourceId: string,
   tableId: string,

@@ -34,11 +34,11 @@ describe("metadataErrorMessage", () => {
     ).toBe("Sync already running");
     expect(
       metadataErrorMessage(new ApiError("Unable to retrieve sample data", 502)),
-    ).toBe("Unable to retrieve sample data");
+    ).toBe("Data temporarily unavailable.");
     expect(
       metadataErrorMessage(
         new ApiError("Metadata synchronization failed", 502),
       ),
-    ).toBe("Metadata synchronization failed");
+    ).toBe("Data temporarily unavailable.");
   });
 });
